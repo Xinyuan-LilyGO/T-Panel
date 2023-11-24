@@ -9,7 +9,7 @@
 -->
 ## T-Panel_Test firmware 说明
 
-### T-Panell_Test_ESP32S3更改日志:
+### T-Panel_Test_ESP32S3更改日志:
 #### T-Panel_Test_ESP32S3_firmware_V1.0.0:初始版本
 #### T-Panel_Test_ESP32S3_firmware_V1.0.1:
     1.修复了整板重新上电后ESP32H2需要手动复位才有返回信息的问题
