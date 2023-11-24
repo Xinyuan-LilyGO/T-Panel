@@ -4,7 +4,7 @@
  * @Author: LILYGO_L
  * @Date: 2023-09-16 10:47:28
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2023-11-23 14:46:37
+ * @LastEditTime: 2023-11-24 15:05:13
  * @License: GPL 3.0
  */
 // #define TOUCH_MODULES_GT911
@@ -24,7 +24,7 @@
 #include "TouchLib.h"
 #include "material_16Bit.h"
 #include "pin_config.h"
-#include "WiFi.h"
+#include <WiFi.h>
 #include <HTTPClient.h>
 
 #define WIFI_SSID "xinyuandianzi"
@@ -440,12 +440,12 @@ void setup()
     delay(5000);
 
     // Touch
-    gfx->XL_digitalWrite(TOUCH_RST, LOW);
+    gfx->XL_digitalWrite(XL95X5_TOUCH_RST, LOW);
     delay(200);
-    gfx->XL_digitalWrite(TOUCH_RST, HIGH);
+    gfx->XL_digitalWrite(XL95X5_TOUCH_RST, HIGH);
     delay(200);
 
-    gfx->XL_digitalWrite(RS485_CON, HIGH);
+    gfx->XL_digitalWrite(XL95X5_RS485_CON, HIGH);
 
     touch.init();
     touch.read();
@@ -539,9 +539,9 @@ void loop()
                 SerialPort2.read();
             }
 
-            gfx->XL_digitalWrite(RS485_CON, HIGH);
+            gfx->XL_digitalWrite(XL95X5_RS485_CON, HIGH);
             SerialPort2.printf("RS485: %d", Uart_Count);
-            gfx->XL_digitalWrite(RS485_CON, LOW);
+            gfx->XL_digitalWrite(XL95X5_RS485_CON, LOW);
 
             SerialPort1.print(Uart_Count);
         }

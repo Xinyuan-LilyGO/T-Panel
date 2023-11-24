@@ -4,7 +4,7 @@
  * @Author: LILYGO_L
  * @Date: 2023-08-16 14:24:03
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2023-11-22 16:57:46
+ * @LastEditTime: 2023-11-24 14:57:23
  * @License: GPL 3.0
  */
 #pragma once
@@ -26,7 +26,6 @@
 // RS485
 #define RS485_TX 15
 #define RS485_RX 16
-#define RS485_CON 7
 
 // YDP395BT001-V2
 #define LCD_WIDTH 480
@@ -54,10 +53,19 @@
 
 // CST3240
 #define CST3240_Address 0x5A
-#define TOUCH_RST 4
 #define TOUCH_INT 21
 
 // XL95x5
 #define XL95X5_CS 17
 #define XL95X5_SCLK 15
 #define XL95X5_MOSI 16
+#define XL95X5_TOUCH_RST 4
+#define XL95X5_RS485_CON 7
+#define XL95X5_LCD_RST 5
+#define XL95X5_ESP32H2_IO12 1
+#define XL95X5_ESP32H2_IO4 2
+#define XL95X5_ESP32H2_IO5 3
+
+//ESP32H2
+#define ESP32H2_EN 34
+#define ESP32H2_BOOT 33
