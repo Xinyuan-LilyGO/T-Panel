@@ -174,12 +174,12 @@
 | CS                    |        NULL         |  XL95X5_IO17                 |
 | SCLK                |         NULL         | XL95X5_IO15                  | 
 | MOSI                |         NULL         | XL95X5_IO16                  | 
-| LCD_RST              |         NULL          |       XL95X5_IO5         |
+| RST              |         NULL          |       XL95X5_IO5         |
 
 | Display Screen Touch Pin       | ESP32S3 Pin|XL95X5 Pin      |
 | :------------------: | :------------------:| :------------------:|
-| TOUCH_INT         | ESP32S3_IO21                 |       NULL         |
-| TOUCH_RST         |         NULL         |       XL95X5_IO4         |
+| INT         | ESP32S3_IO21                 |       NULL         |
+| RST         |         NULL         |       XL95X5_IO4         |
 
 | SD Pin           | ESP32S3 Pin      |
 | :------------------: | :------------------:|
