@@ -80,6 +80,8 @@
 
 ## QuickStart
 
+### Attention: Currently, ESP32H2 can only be programmed using the Arduino IDE
+
 ### PlatformIO
 1. Install[VisualStudioCode](https://code.visualstudio.com/Download),Choose installation based on your system type.
 
