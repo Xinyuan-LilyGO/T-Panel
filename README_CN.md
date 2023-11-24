@@ -175,12 +175,12 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 | CS                    |        NULL         |  XL95X5_IO17                 |
 | SCLK                |         NULL         | XL95X5_IO15                  | 
 | MOSI                |         NULL         | XL95X5_IO16                  | 
-| LCD_RST              |         NULL          |       XL95X5_IO5         |
+| RST              |         NULL          |       XL95X5_IO5         |
 
 | 显示屏触摸引脚       | ESP32S3引脚|XL95X5引脚      |
 | :------------------: | :------------------:| :------------------:|
-| TOUCH_INT         | ESP32S3_IO21                 |       NULL         |
-| TOUCH_RST         |         NULL         |       XL95X5_IO4         |
+| INT         | ESP32S3_IO21                 |       NULL         |
+| RST         |         NULL         |       XL95X5_IO4         |
 
 | SD卡引脚           | ESP32S3引脚      |
 | :------------------: | :------------------:|
