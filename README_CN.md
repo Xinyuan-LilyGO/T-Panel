@@ -49,12 +49,12 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 ### 1. 控制芯片
 
 * 主芯片：ESP32-S3
-* PSRAM：-M 
-* FLASH：-M
+* PSRAM：-MB
+* FLASH：-MB
 * 其他说明：更多资料请访问[乐鑫官方ESP32­-S3 数据手册](https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_cn.pdf)
 
 * 副芯片：ESP32-H2-MINI-1
-* FLASH：4MB(4Mb)
+* FLASH：4MB
 * 其他说明：更多资料请访问[乐鑫官方ESP32­-MINI-1数据手册](https://www.espressif.com/sites/default/files/documentation/esp32-h2-mini-1_mini-1u_datasheet_cn.pdf)
 
 
