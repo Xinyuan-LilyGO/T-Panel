@@ -224,8 +224,7 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 
 * Q. 为什么我在Arduion上找不到ESP32H2这个芯片的库呢？
 * A. 目前ESP32H2这款芯片的Arduino库正处于测试阶段，您可以去GitHub上的[arduino-esp32](https://github.com/espressif/arduino-esp32)下载3.0.0分支版本以上的
-package_esp32_dev_index.json文件，导入Arduino IDE即可看到ESP32H2芯片库
-
+“package_esp32_dev_index.json”文件，导入Arduino IDE即可看到ESP32H2芯片库
 <br />
 
 * Q. 为什么我的板子一直烧录失败呢？
