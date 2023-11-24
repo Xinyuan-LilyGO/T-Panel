@@ -7,9 +7,9 @@
  * @LastEditTime: 2023-11-23 15:03:34
  * @License: GPL 3.0
 -->
-## T-Panel instructions
+## T-Panel_Test instructions
 
-### T-Panel_ESP32S3 Change Log:
+### T-Panel_Test_ESP32S3 Change Log:
 #### T-Panel_Test_ESP32S3_firmware_V1.0.0:Original
 #### T-Panel_Test_ESP32S3_firmware_V1.0.1:
     1. Fixed the issue of ESP32H2 needing manual reset after powering on the whole board again to return information.
