@@ -56,7 +56,7 @@
 * FLASH: 4MB
 * Others: For more information, please visit[Espressif Official ESP32­-MINI-1datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-h2-mini-1_mini-1u_datasheet_cn.pdf)
 
-### 2. 480x480RGB pixel display screen
+### 2. 3.95 Inch 480x480RGB pixel display screen
 
 * Drive: ST7701S
 * Compatibility library: Arduino_GFX、lvgl
