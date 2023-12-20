@@ -58,7 +58,7 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 * 其他说明：更多资料请访问[乐鑫官方ESP32­-MINI-1数据手册](https://www.espressif.com/sites/default/files/documentation/esp32-h2-mini-1_mini-1u_datasheet_cn.pdf)
 
 
-### 2. 480x480RGB像素显示屏幕
+### 2. 3.95英寸480x480RGB像素显示屏幕
 
 * 驱动：ST7701S
 * 兼容库：Arduino_GFX、lvgl
