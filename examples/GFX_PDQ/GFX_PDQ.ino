@@ -1,10 +1,10 @@
 /*
  * @Description: Adapted from the Adafruit and Xark's PDQ graphicstest sketch.
- * @version: V1.0.0
+ * @version: V1.0.1
  * @Author: None
  * @Date: 2023-09-14 17:49:14
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2023-11-22 17:10:58
+ * @LastEditTime: 2024-01-11 13:49:00
  * @License: GPL 3.0
  */
 #include <Arduino_GFX_Library.h>
@@ -19,8 +19,8 @@ Arduino_ESP32RGBPanel *rgbpanel = new Arduino_ESP32RGBPanel(
     LCD_B0 /* B0 */, LCD_B1 /* B1 */, LCD_B2 /* B2 */, LCD_B3 /* B3 */, LCD_B4 /* B4 */,
     LCD_G0 /* G0 */, LCD_G1 /* G1 */, LCD_G2 /* G2 */, LCD_G3 /* G3 */, LCD_G4 /* G4 */, LCD_G5 /* G5 */,
     LCD_R0 /* R0 */, LCD_R1 /* R1 */, LCD_R2 /* R2 */, LCD_R3 /* R3 */, LCD_R4 /* R4 */,
-    1 /* hsync_polarity */, 20 /* hsync_front_porch */, 1 /* hsync_pulse_width */, 1 /* hsync_back_porch */,
-    1 /* vsync_polarity */, 30 /* vsync_front_porch */, 1 /* vsync_pulse_width */, 10 /* vsync_back_porch */,
+    1 /* hsync_polarity */, 20 /* hsync_front_porch */, 2 /* hsync_pulse_width */, 0 /* hsync_back_porch */,
+    1 /* vsync_polarity */, 30 /* vsync_front_porch */, 8 /* vsync_pulse_width */, 1 /* vsync_back_porch */,
     10 /* pclk_active_neg */, 6000000L /* prefer_speed */, false /* useBigEndian */,
     0 /* de_idle_high*/, 0 /* pclk_idle_high */);
 Arduino_RGB_Display *gfx = new Arduino_RGB_Display(
