@@ -1,10 +1,10 @@
 /*
  * @Description: T-Panel出厂测试程序
- * @version: V1.0.3
+ * @version: V1.0.4
  * @Author: LILYGO_L
  * @Date: 2023-09-16 10:47:28
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2024-01-11 13:55:59
+ * @LastEditTime: 2024-01-12 18:18:37
  * @License: GPL 3.0
  */
 // #define TOUCH_MODULES_GT911
@@ -383,7 +383,7 @@ void setup()
         FALLING); // Triggered every 1ms
 
     ledcAttachPin(LCD_BL, 1);
-    ledcSetup(1, 20000, 8);
+    ledcSetup(1, 1000, 8);
     ledcWrite(1, 0);
 
     Wire.begin(IIC_SDA, IIC_SCL);
@@ -400,19 +400,19 @@ void setup()
     for (int j = 0; j < 2; j++)
     {
         delay(2000);
-        for (int i = 0; i < 255; i++)
+        for (int i = 0; i <= 255; i++)
         {
             ledcWrite(1, i);
             delay(2);
         }
-        for (int i = 255; i > 0; i--)
+        for (int i = 255; i >= 0; i--)
         {
             ledcWrite(1, i);
             delay(5);
         }
     }
     delay(2000);
-    for (int i = 0; i < 255; i++)
+    for (int i = 0; i <= 255; i++)
     {
         ledcWrite(1, i);
         delay(2);

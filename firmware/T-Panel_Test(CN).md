@@ -4,7 +4,7 @@
  * @Author: LILYGO_L
  * @Date: 2023-09-12 18:12:36
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2024-01-11 10:49:52
+ * @LastEditTime: 2024-01-12 17:16:27
  * @License: GPL 3.0
 -->
 ## T-Panel_Test firmware 说明
@@ -18,6 +18,8 @@
     1.新增屏幕边缘测试
 #### T-Panel_Test_ESP32S3_firmware_V1.0.3:
     1.修复屏幕边缘测试部分时序不对检测失败的问题
+#### T-Panel_Test_ESP32S3_firmware_V1.0.4:
+    1.调整屏幕背光刷新率
 
 ### T-Panel_Test_ESP32H2更改日志:
 #### T-Panel_Test_ESP32H2_firmware_V1.0.0:初始版本

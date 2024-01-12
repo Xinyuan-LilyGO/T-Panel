@@ -18,6 +18,8 @@
     1.Newly added screen edge testing
 #### T-Panel_Test_ESP32S3_firmware_V1.0.3:
     1.Fix the issue of incorrect timing in the screen edge testing section and detection failure
+#### T-Panel_Test_ESP32S3_firmware_V1.0.4:
+    1.Adjusting the screen backlight refresh rate
 
 ### T-Panel_Test_ESP32H2 Change Log:
 #### T-Panel_Test_ESP32H2_firmware_V1.0.0:Original
