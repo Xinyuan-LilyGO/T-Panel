@@ -4,7 +4,7 @@
  * @Author: LILYGO_L
  * @Date: 2023-09-12 18:12:36
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2024-01-11 10:50:18
+ * @LastEditTime: 2024-01-12 18:25:12
  * @License: GPL 3.0
 -->
 ## T-Panel_Test instructions
@@ -19,7 +19,7 @@
 #### T-Panel_Test_ESP32S3_firmware_V1.0.3:
     1.Fix the issue of incorrect timing in the screen edge testing section and detection failure
 #### T-Panel_Test_ESP32S3_firmware_V1.0.4:
-    1.Adjusting the screen backlight refresh rate
+    1.Adjust the screen backlight PWM to 1 Khz
 
 ### T-Panel_Test_ESP32H2 Change Log:
 #### T-Panel_Test_ESP32H2_firmware_V1.0.0:Original

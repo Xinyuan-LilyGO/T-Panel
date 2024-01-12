@@ -19,7 +19,7 @@
 #### T-Panel_Test_ESP32S3_firmware_V1.0.3:
     1.修复屏幕边缘测试部分时序不对检测失败的问题
 #### T-Panel_Test_ESP32S3_firmware_V1.0.4:
-    1.调整屏幕背光刷新率
+    1.调整屏幕背光PWM为1Khz
 
 ### T-Panel_Test_ESP32H2更改日志:
 #### T-Panel_Test_ESP32H2_firmware_V1.0.0:初始版本
