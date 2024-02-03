@@ -4,7 +4,7 @@
  * @Author: LILYGO_L
  * @Date: 2023-09-11 16:13:14
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2024-02-03 15:09:09
+ * @LastEditTime: 2024-02-03 15:26:55
  * @License: GPL 3.0
 -->
 <h1 align = "center">T-Panel</h1>
@@ -54,6 +54,8 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 * PSRAM：8MB
 * FLASH：16MB
 * 其他说明：更多资料请访问[乐鑫官方ESP32­-S3 数据手册](https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_cn.pdf)
+
+<br />
 
 * MCU2：ESP32-H2-MINI-1
 * FLASH：4MB

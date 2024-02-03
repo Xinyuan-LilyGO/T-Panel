@@ -54,6 +54,8 @@
 * FLASH: 16MB
 * Others: For more information, please visit[Espressif Official ESP32-S3datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_cn.pdf)
 
+<br />
+
 * MCU2: ESP32-H2-MINI-1
 * FLASH: 4MB
 * Others: For more information, please visit[Espressif Official ESP32­-MINI-1datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-h2-mini-1_mini-1u_datasheet_cn.pdf)
