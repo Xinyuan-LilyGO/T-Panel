@@ -4,7 +4,7 @@
  * @Author: LILYGO_L
  * @Date: 2023-09-11 16:13:14
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2023-11-24 15:08:32
+ * @LastEditTime: 2024-02-03 15:09:09
  * @License: GPL 3.0
 -->
 <h1 align = "center">T-Panel</h1>
@@ -15,12 +15,14 @@
 | Version                               | Update date                       |
 | :-------------------------------: | :-------------------------------: |
 | T-Panel_V1.0                      | 2023-11-23                         |
+| T-Panel_V1.2                      | 2023-12-11                         |
 
 ## 购买链接
 
 | Product                     | SOC           |  FLASH  |  PSRAM   | Link                   |
 | :------------------------: | :-----------: |:-------: | :---------: | :------------------: |
-| T-Panel_V1.0   | ESP32S3 |   -M   | -M  |  [暂未售卖]()  |
+| T-Panel_V1.0   | ESP32S3 |   16M   | 8M  |  [暂未售卖]()  |
+| T-Panel_V1.2   | ESP32S3 |   16M   | 8M  |  [暂未售卖]()  |
 
 ## 目录
 - [描述](#描述)
@@ -46,42 +48,53 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 
 ## 模块
 
-### 1. MCU芯片
+### 1. MCU
 
-* 主芯片：ESP32-S3
-* PSRAM：-MB
-* FLASH：-MB
+* MCU1：ESP32-S3
+* PSRAM：8MB
+* FLASH：16MB
 * 其他说明：更多资料请访问[乐鑫官方ESP32­-S3 数据手册](https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_cn.pdf)
 
-* 副芯片：ESP32-H2-MINI-1
+* MCU2：ESP32-H2-MINI-1
 * FLASH：4MB
 * 其他说明：更多资料请访问[乐鑫官方ESP32­-MINI-1数据手册](https://www.espressif.com/sites/default/files/documentation/esp32-h2-mini-1_mini-1u_datasheet_cn.pdf)
 
 
-### 2. 3.95英寸480x480RGB像素显示屏幕
+### 2. 屏幕
 
-* 驱动：ST7701S
-* 兼容库：Arduino_GFX、lvgl
-* 使用总线通信协议：SPI+RGB
-* 其他说明：使用XL95x5 IO扩展芯片进行SPI传输初始化屏幕后使用RGB协议进行屏幕色彩绘制
+* 屏幕型号：YDP395BT001
+* 尺寸：3.95英寸
+* 分辨率：480x480px
+* 屏幕类型：IPS
+* 驱动芯片：ST7701S
+* 使用总线通信协议：标准SPI+RGB
+* 其他说明：使用XL95x5 IO扩展芯片进行标准SPI传输初始化屏幕后使用RGB协议进行屏幕色彩绘制
 
 ### 3. SD卡槽
 
-### 4. IO扩展模块
+### 4. IO扩展
 
 * 芯片：XL9535
 * 使用总线通信协议：IIC通信
 * 其他说明：主要用于初始化RGB屏幕
 
-### 5. RS485
+### 5. 远距离通信
 
-* 芯片：RS485 
-* 使用总线通信协议：uart通信
-* 其他说明：主要用于初始化RGB屏幕
+* 模块：RS485 
+* 使用总线通信协议：UART通信
+
+* 模块：CAN
+* 使用总线通信协议：TWAI通信
 
 ## 快速开始
 
 ### 注意事项：目前ESP32H2只能使用Arduino IDE进行编程
+
+### 示例支持
+
+<p align="center" width="100%">
+    <img src="image/T-Panel_Example_Support.png" alt="example">
+</p>
 
 ### PlatformIO
 1. 安装[VisualStudioCode](https://code.visualstudio.com/Download)，根据你的系统类型选择安装。
@@ -108,6 +121,7 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 #### ESP32-S3
 | Setting                               | Value                                 |
 | :-------------------------------: | :-------------------------------: |
+| Board                                | Dfrobot Firebeetle 2 ESP32-S3|
 | Upload Speed                     | 921600                               |
 | USB Mode                           | Hardware CDC and JTAG     |
 | USB CDC On Boot                | Enabled                             |
@@ -124,6 +138,7 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 #### ESP32-H2
 | Setting                               | Value                                 |
 | :-------------------------------: | :-------------------------------: |
+| Board                                | ESP32H2 Dev Module          |
 | Upload Speed                     | 921600                               |
 | USB CDC On Boot                | Disabled                             |
 | CPU Frequency                   | 64MHz                              |
@@ -181,8 +196,6 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 | :------------------: | :------------------:| :------------------:|
 | INT         | ESP32S3_IO21                 |       NULL         |
 | RST         |         NULL         |       XL95X5_IO4         |
-| SDA         |         ESP32S3_IO17       |       NULL         |
-| SCL         |         ESP32S3_IO18       |       NULL         |
 
 | SD卡引脚           | ESP32S3引脚      |
 | :------------------: | :------------------:|
@@ -191,11 +204,21 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 | MOSI                  | IO35                  |
 | MISO                  | IO37                    |
 
-| RS485引脚           | ESP32S3引脚      | XL95X5引脚      |
+| RS485引脚（T-Panel_V1.0）           | ESP32S3引脚      | XL95X5引脚      |
 | :------------------: | :------------------:| :------------------:|
 | TX                     | ESP32S3_IO15                  |NULL           |
 | RX                     | ESP32S3_IO16                  |NULL           |
 | CON                  |          NULL           | XL95X5_IO7        |
+
+| RS485引脚（T-Panel_V1.2）           | ESP32S3引脚      | 
+| :------------------: | :------------------:| 
+| TX                     | ESP32S3_IO16                  |
+| RX                     | ESP32S3_IO15                  |
+
+| CAN引脚（T-Panel_V1.2）           | ESP32S3引脚      | 
+| :------------------: | :------------------:|
+| TX                     | ESP32S3_IO16                  |
+| RX                     | ESP32S3_IO15                  |
 
 | 功能     | ESP32H2引脚     | ESP32S3引脚      | XL95X5引脚      |
 | :-------: | :----------: |  :------------------:|:------------------:|
@@ -227,9 +250,10 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 * Q. 为什么我在Arduion上找不到ESP32H2这个芯片的库呢？
 * A. 目前ESP32H2这款芯片的Arduino库正处于测试阶段，您可以去GitHub上的[arduino-esp32](https://github.com/espressif/arduino-esp32)下载3.0.0分支版本以上的
 “package_esp32_dev_index.json”文件，导入Arduino IDE即可看到ESP32H2芯片库
+
 <br />
 
-* Q. 为什么我的板子一直烧录失败呢？ 
+* Q. 为什么我的板子一直烧录失败呢？
 * A. 请按住“BOOT-0”按键重新下载程序。
 
 ## 项目

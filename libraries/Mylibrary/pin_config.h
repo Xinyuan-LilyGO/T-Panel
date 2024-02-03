@@ -4,7 +4,7 @@
  * @Author: LILYGO_L
  * @Date: 2023-08-16 14:24:03
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2023-11-24 14:57:23
+ * @LastEditTime: 2024-01-30 17:50:47
  * @License: GPL 3.0
  */
 #pragma once
@@ -23,9 +23,25 @@
 #define ESP32H2_TX 48
 #define ESP32H2_RX 47
 
-// RS485
+// 选择你的板子版本以及通信模块
+//  #define T_Panel_V1_0_RS485
+ #define T_Panel_V1_2_RS485
+// #define T_Panel_V1_2_CAN
+
+#if defined T_Panel_V1_0_RS485
 #define RS485_TX 15
 #define RS485_RX 16
+#endif
+
+#if defined T_Panel_V1_2_RS485
+#define RS485_TX 16
+#define RS485_RX 15
+#endif
+
+#if defined T_Panel_V1_2_CAN
+#define CAN_TX 16
+#define CAN_RX 15
+#endif
 
 // YDP395BT001-V2
 #define LCD_WIDTH 480
@@ -66,6 +82,6 @@
 #define XL95X5_ESP32H2_IO4 2
 #define XL95X5_ESP32H2_IO5 3
 
-//ESP32H2
+// ESP32H2
 #define ESP32H2_EN 34
 #define ESP32H2_BOOT 33

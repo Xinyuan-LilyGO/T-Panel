@@ -1186,12 +1186,12 @@ static const uint8_t st7701_type9_init_operations[] = {
     WRITE_COMMAND_8, 0xFF,
     WRITE_BYTES, 5, 0x77, 0x01, 0x00, 0x00, 0x11,
 
-    WRITE_C8_D8, 0xB0, 0x4D, 
-    WRITE_C8_D8, 0xB1, 0x33, 
-    WRITE_C8_D8, 0xB2, 0x87, 
-    WRITE_C8_D8, 0xB5, 0x4B, 
+    WRITE_C8_D8, 0xB0, 0x4D,
+    WRITE_C8_D8, 0xB1, 0x33,
+    WRITE_C8_D8, 0xB2, 0x87,
+    WRITE_C8_D8, 0xB5, 0x4B,
     WRITE_C8_D8, 0xB7, 0x8C,
-    WRITE_C8_D8, 0xB8, 0x20, 
+    WRITE_C8_D8, 0xB8, 0x20,
     WRITE_C8_D8, 0xC1, 0x78,
     WRITE_C8_D8, 0xC2, 0x78,
     WRITE_C8_D8, 0xD0, 0x88,
@@ -1302,6 +1302,7 @@ public:
 
     uint16_t *getFramebuffer();
 
+    void XL_pinMode(uint8_t pin, uint8_t mode);
     void XL_digitalWrite(uint8_t pin, uint8_t val);
     int XL_digitalRead(uint8_t pin);
 

@@ -4,7 +4,7 @@
  * @Author: LILYGO_L
  * @Date: 2023-09-11 16:13:14
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2023-11-24 15:34:20
+ * @LastEditTime: 2024-02-03 15:07:54
  * @License: GPL 3.0
 -->
 <h1 align = "center">T-Panel</h1>
@@ -15,12 +15,14 @@
 | Version                              | Update date                       |
 | :-------------------------------: | :-------------------------------: |
 | T-Panel_V1.0                      | 2023-11-23                         |
+| T-Panel_V1.2                      | 2023-12-11                         |
 
 ## PurchaseLink
 
 | Product                     | SOC           |  FLASH  |  PSRAM   | Link                   |
 | :------------------------: | :-----------: |:-------: | :---------: | :------------------: |
-| T-Panel_V1.0   | ESP32S3 |   -M   | -M  | [Not yet sold]()  |
+| T-Panel_V1.0   | ESP32S3 |   16M   | 8M  | [Not yet sold]()  |
+| T-Panel_V1.2   | ESP32S3 |   16M   | 8M  | [Not yet sold]()  |
 
 ## Directory
 - [Describe](#describe)
@@ -45,42 +47,52 @@
 
 ## Module
 
-### 1.MCU Chip
+### 1.MCU
 
-* Chip: ESP32-S3
-* PSRAM: -MB
-* FLASH: -MB
+* MCU1: ESP32-S3
+* PSRAM: 8MB
+* FLASH: 16MB
 * Others: For more information, please visit[Espressif Official ESP32-S3datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_cn.pdf)
 
-* Chip: ESP32-H2-MINI-1
+* MCU2: ESP32-H2-MINI-1
 * FLASH: 4MB
 * Others: For more information, please visit[Espressif Official ESP32­-MINI-1datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-h2-mini-1_mini-1u_datasheet_cn.pdf)
 
-### 2. 3.95 Inch 480x480RGB pixel display screen
+### 2. Screen
 
-* Drive: ST7701S
-* Compatibility library: Arduino_GFX、lvgl
-* Using bus communication protocol: SPI+RGB
-* Other instructions: Use XL95x5 IO expansion chip for SPI transmission, initialize the screen, and use RGB protocol for screen color drawing
+* Screen Model: YDP395BT001
+* Size: 3.95-inch
+* Resolution Ratio: 480x480px
+* Screen Type: IPS
+* Driver Chip: ST7701S
+* Using Bus Communication Protocol: Standard SPI+RGB
+* Other: Use XL95x5 IO expansion chip for Standard SPI transmission, initialize the screen, and use RGB protocol for screen color drawing
 
-### 3. SD card slot
+### 3. SD Card Slot
 
-### 4. IO expansion module
+### 4. IO Expansion
 
 * Chip: XL9535
 * Using bus communication protocol: IIC communication
-* Other instructions: mainly used to initialize RGB screens
+* Other: Mainly used to initialize RGB screens
 
-### 5. RS485
+### 5. Telecommunication
 
 * Chip: RS485 
-* Using bus communication protocol: uart communication
-* Other instructions: mainly used to initialize RGB screens
+* Using Bus Communication Protocol: uart communication
 
+* Chip: CAN
+* Using Bus Communication Protocol: TWAI communication
 
 ## QuickStart
 
 ### Attention: Currently, ESP32H2 can only be programmed using the Arduino IDE
+
+### Examples Support
+
+<p align="center" width="100%">
+    <img src="image/T-Panel_Example_Support.png" alt="example">
+</p>
 
 ### PlatformIO
 1. Install[VisualStudioCode](https://code.visualstudio.com/Download),Choose installation based on your system type.
@@ -107,6 +119,7 @@
 #### ESP32-S3
 | Setting                               | Value                                 |
 | :-------------------------------: | :-------------------------------: |
+| Board                                | Dfrobot Firebeetle 2 ESP32-S3|
 | Upload Speed                     | 921600                               |
 | USB Mode                           | Hardware CDC and JTAG     |
 | USB CDC On Boot                | Enabled                             |
@@ -123,6 +136,7 @@
 #### ESP32-H2
 | Setting                               | Value                                 |
 | :-------------------------------: | :-------------------------------: |
+| Board                                | ESP32H2 Dev Module          |
 | Upload Speed                     | 921600                               |
 | USB CDC On Boot                | Disabled                             |
 | CPU Frequency                   | 64MHz                              |
@@ -190,11 +204,21 @@
 | MOSI                  | IO35                  |
 | MISO                  | IO37                    |
 
-| RS485 Pin           | ESP32S3 Pin      | XL95X5 Pin      |
+| RS485 Pin(T-Panel_V1.0)           | ESP32S3 Pin      | XL95X5 Pin      |
 | :------------------: | :------------------:| :------------------:|
 | TX                     | ESP32S3_IO15                  |NULL           |
 | RX                     | ESP32S3_IO16                  |NULL           |
 | CON                  |          NULL           | XL95X5_IO7        |
+
+| RS485 Pin(T-Panel_V1.2)           | ESP32S3 Pin      | 
+| :------------------: | :------------------:|
+| TX                     | ESP32S3_IO16                  |
+| RX                     | ESP32S3_IO15                  |
+
+| CAN Pin(T-Panel_V1.2)           | ESP32S3 Pin      | 
+| :------------------: | :------------------:|
+| TX                     | ESP32S3_IO16                  |
+| RX                     | ESP32S3_IO15                  |
 
 | Function     | ESP32H2 Pin     | ESP32S3 Pin      | XL95X5 Pin      |
 | :-------: | :----------: |  :------------------:|:------------------:|
