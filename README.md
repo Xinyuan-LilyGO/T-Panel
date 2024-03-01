@@ -272,3 +272,4 @@
 * [Arduino_GFX-1.3.7](https://github.com/moononournation/Arduino_GFX)
 * [TouchLib](https://github.com/mmMicky/TouchLib)
 * [XL95x5_Driver]()
+* [lvgl-8.3.5](https://github.com/lvgl/lvgl)

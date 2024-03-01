@@ -4,7 +4,7 @@
  * @Author: LILYGO_L
  * @Date: 2023-09-11 16:13:14
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2024-02-03 15:26:55
+ * @LastEditTime: 2024-03-01 13:50:18
  * @License: GPL 3.0
 -->
 <h1 align = "center">T-Panel</h1>
@@ -273,3 +273,4 @@ T-Panel是一款拥有480x480RGB像素大屏的智能家居产品。板载高性
 * [Arduino_GFX-1.3.7](https://github.com/moononournation/Arduino_GFX)
 * [TouchLib](https://github.com/mmMicky/TouchLib)
 * [XL95x5_Driver]()
+* [lvgl-8.3.5](https://github.com/lvgl/lvgl)
