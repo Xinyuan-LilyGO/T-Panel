@@ -4,7 +4,7 @@
  * @Author: LILYGO_L
  * @Date: 2023-08-16 14:24:03
  * @LastEditors: LILYGO_L
- * @LastEditTime: 2024-01-30 17:50:47
+ * @LastEditTime: 2024-02-29 18:04:39
  * @License: GPL 3.0
  */
 #pragma once
@@ -68,8 +68,11 @@
 #define LCD_BL 14
 
 // CST3240
-#define CST3240_Address 0x5A
+#define CST3240_ADDRESS 0x5A
+#define TOUCH_SDA 17
+#define TOUCH_SCL 18
 #define TOUCH_INT 21
+#define TOUCH_RST 4
 
 // XL95x5
 #define XL95X5_CS 17
