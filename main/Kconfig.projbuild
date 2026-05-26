@@ -1,0 +1,12 @@
+menu "Example Configuration"
+
+    choice
+        prompt "Select the example to build"
+        default EXAMPLE_BUILD_SCREEN
+
+        config EXAMPLE_BUILD_SCREEN
+            bool "screen"
+
+    endchoice
+
+endmenu

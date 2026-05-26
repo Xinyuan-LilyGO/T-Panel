@@ -1,0 +1,11 @@
+idf_component_register(
+    SRCS
+    "st7701_driver.cpp"
+    INCLUDE_DIRS
+    "."
+    REQUIRES
+    "cpp_bus_driver"
+    "driver"
+    "esp_lcd"
+    "private_library"
+)

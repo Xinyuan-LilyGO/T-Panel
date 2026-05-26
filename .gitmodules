@@ -1,0 +1,4 @@
+[submodule "libraries/cpp_bus_driver"]
+	path = libraries/cpp_bus_driver
+	url = https://github.com/Llgok/cpp_bus_driver.git
+	branch = debug
