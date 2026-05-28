@@ -1,6 +1,4 @@
-if(CONFIG_EXAMPLE_BUILD_SCREEN)
-    set(src_dirs "./")
-endif()
+set(src_dirs "./")
 
 idf_component_register(
     SRC_DIRS

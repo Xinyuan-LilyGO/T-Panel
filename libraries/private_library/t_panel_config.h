@@ -81,9 +81,10 @@ namespace device {
 namespace st7701 {
 inline constexpr int kWidth = 480;
 inline constexpr int kHeight = 480;
-inline constexpr int kPixelClockHz = 10000000;
+inline constexpr int kPixelClockHz = 11000000;
 inline constexpr int kPclkActiveNeg = 0;
 inline constexpr int kBounceBufferHeight = 10;
+inline constexpr int kFrameBufferCount = 1;
 inline constexpr int kHsyncPulseWidth = 2;
 inline constexpr int kHsyncBackPorch = 0;
 inline constexpr int kHsyncFrontPorch = 20;

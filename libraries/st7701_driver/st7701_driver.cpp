@@ -42,6 +42,7 @@ static constexpr InitCommand kInitSequence[] = {
     {0xC0, {0x3B, 0x00}, 2, 0},
     {0xC1, {0x0B, 0x02}, 2, 0},
     {0xC2, {0x30, 0x02, 0x37}, 3, 0},
+    {0xC3, {0x80}, 1, 0},  // 同步模式
     {0xCC, {0x10}, 1, 0},
     {0xB0,
         {0x00, 0x0F, 0x16, 0x0E, 0x11, 0x07, 0x09, 0x09, 0x08, 0x23, 0x05, 0x11,
@@ -260,7 +261,7 @@ bool InitSt7701BySpi(cpp_bus_driver::Xl95x5* xl9535) {
 
 bool InitRgbPanel(esp_lcd_panel_handle_t* panel_handle) {
   esp_lcd_rgb_panel_config_t rgb_config = {
-      .clk_src = LCD_CLK_SRC_PLL240M,
+      .clk_src = LCD_CLK_SRC_DEFAULT,
       .timings =
           {
               .pclk_hz = t_panel::device::st7701::kPixelClockHz,
@@ -284,7 +285,7 @@ bool InitRgbPanel(esp_lcd_panel_handle_t* panel_handle) {
           },
       .data_width = 16,
       .bits_per_pixel = 16,
-      .num_fbs = 2,
+      .num_fbs = t_panel::device::st7701::kFrameBufferCount,
       .bounce_buffer_size_px = t_panel::device::st7701::kWidth *
                                t_panel::device::st7701::kBounceBufferHeight,
       .sram_trans_align = 8,
