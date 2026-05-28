@@ -11,6 +11,8 @@ menu "Example Configuration"
             bool "screen_lvgl_touch_draw"
         config EXAMPLE_BUILD_SD
             bool "sd"
+        config EXAMPLE_BUILD_RS485_CAN
+            bool "rs485_can"
     endchoice
 
 endmenu
