@@ -1,3 +1,10 @@
+/*
+ * @Description: None
+ * @Author: LILYGO_L
+ * @Date: 2026-05-26 16:17:47
+ * @LastEditTime: 2026-05-28 14:43:10
+ * @License: GPL 3.0
+ */
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -162,9 +169,8 @@ bool InitLvgl(esp_lcd_panel_handle_t panel_handle) {
       LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_flush_cb(display, LvglFlush);
 
-  esp_lcd_rgb_panel_event_callbacks_t callbacks = {
-      .on_color_trans_done = NotifyLvglFlushReady,
-  };
+  esp_lcd_rgb_panel_event_callbacks_t callbacks = {};
+  callbacks.on_color_trans_done = NotifyLvglFlushReady;
   if (esp_lcd_rgb_panel_register_event_callbacks(
           panel_handle, &callbacks, display) != ESP_OK) {
     printf("Register RGB panel callbacks failed\n");

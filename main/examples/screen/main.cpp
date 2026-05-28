@@ -1,3 +1,10 @@
+/*
+ * @Description: None
+ * @Author: LILYGO_L
+ * @Date: 2026-05-26 16:17:47
+ * @LastEditTime: 2026-05-28 14:42:59
+ * @License: GPL 3.0
+ */
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
