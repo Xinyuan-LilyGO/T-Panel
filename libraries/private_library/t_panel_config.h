@@ -18,6 +18,10 @@ inline constexpr int kSda = 17;
 inline constexpr int kScl = 18;
 }  // namespace i2c
 
+namespace esp32s3 {
+inline constexpr int kBoot = 0;
+}  // namespace esp32s3
+
 namespace esp32h2 {
 inline constexpr int kTx = 48;
 inline constexpr int kRx = 47;

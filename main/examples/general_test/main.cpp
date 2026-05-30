@@ -43,6 +43,7 @@
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "draw/sw/lv_draw_sw.h"
 #include "lvgl.h"
 #include "lvgl_startup_images.h"
 #include "nvs_flash.h"
@@ -59,6 +60,10 @@ constexpr int kLvglTaskPriority = 2;
 constexpr int kLvglRefreshPeriodMs = 20;
 constexpr int kLvglTaskMinDelayMs = kLvglRefreshPeriodMs;
 constexpr int kLvglTaskMaxDelayMs = 500;
+constexpr int kRotationButtonTaskStackSize = 2 * 1024;
+constexpr int kRotationButtonTaskPriority = 1;
+constexpr int kRotationButtonPollMs = 20;
+constexpr int kRotationButtonDebounceMs = 250;
 constexpr int kLvglDrawBufferLines = 20;
 constexpr int kBacklightFadeTimeMs = 800;
 constexpr int kI2cFreqHz = 400000;
@@ -178,6 +183,9 @@ TaskHandle_t g_ble_task_handle = nullptr;
 BleState g_ble_state = BleState::kIdle;
 lv_point_t g_touch_last = {};
 volatile bool g_touch_int_flag = false;
+lv_display_rotation_t g_display_rotation = LV_DISPLAY_ROTATION_180;
+void* g_rotated_flush_buffer = nullptr;
+size_t g_rotated_flush_buffer_size = 0;
 
 const lv_image_dsc_t* const kWallpaperTable[] = {
     &kLvglStartupImage1,
@@ -350,14 +358,134 @@ void LvglFlush(lv_display_t* display, const lv_area_t* area, uint8_t* px_map) {
   esp_lcd_panel_handle_t panel_handle =
       static_cast<esp_lcd_panel_handle_t>(lv_display_get_user_data(display));
 
-  if (esp_lcd_panel_draw_bitmap(panel_handle, area->x1, area->y1, area->x2 + 1,
-          area->y2 + 1, px_map) != ESP_OK) {
+  const lv_area_t* draw_area = area;
+  uint8_t* draw_map = px_map;
+  lv_area_t rotated_area = {};
+  const lv_display_rotation_t rotation = lv_display_get_rotation(display);
+
+  if (rotation != LV_DISPLAY_ROTATION_0) {
+    const int32_t src_width = lv_area_get_width(area);
+    const int32_t src_height = lv_area_get_height(area);
+    const uint32_t src_stride =
+        lv_draw_buf_width_to_stride(src_width, LV_COLOR_FORMAT_RGB565);
+
+    rotated_area = *area;
+    lv_display_rotate_area(display, &rotated_area);
+
+    const uint32_t dest_stride = lv_draw_buf_width_to_stride(
+        lv_area_get_width(&rotated_area), LV_COLOR_FORMAT_RGB565);
+    const size_t rotated_size =
+        dest_stride * static_cast<size_t>(lv_area_get_height(&rotated_area));
+
+    if (g_rotated_flush_buffer_size < rotated_size) {
+      if (g_rotated_flush_buffer != nullptr) {
+        heap_caps_free(g_rotated_flush_buffer);
+      }
+      g_rotated_flush_buffer =
+          heap_caps_malloc(rotated_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+      g_rotated_flush_buffer_size =
+          g_rotated_flush_buffer != nullptr ? rotated_size : 0;
+    }
+
+    if (g_rotated_flush_buffer == nullptr) {
+      printf("Allocate rotated LVGL flush buffer failed\n");
+      lv_display_flush_ready(display);
+      return;
+    }
+
+    lv_draw_sw_rotate(px_map, g_rotated_flush_buffer, src_width, src_height,
+        src_stride, dest_stride, rotation, LV_COLOR_FORMAT_RGB565);
+    draw_area = &rotated_area;
+    draw_map = static_cast<uint8_t*>(g_rotated_flush_buffer);
+  }
+
+  if (esp_lcd_panel_draw_bitmap(panel_handle, draw_area->x1, draw_area->y1,
+          draw_area->x2 + 1, draw_area->y2 + 1, draw_map) != ESP_OK) {
     printf("LVGL flush failed\n");
     lv_display_flush_ready(display);
   }
 }
 
 void IncreaseLvglTick(void* arg) { lv_tick_inc(kLvglTickPeriodMs); }
+
+const char* RotationName(lv_display_rotation_t rotation) {
+  switch (rotation) {
+    case LV_DISPLAY_ROTATION_0:
+      return "0";
+    case LV_DISPLAY_ROTATION_90:
+      return "90";
+    case LV_DISPLAY_ROTATION_180:
+      return "180";
+    case LV_DISPLAY_ROTATION_270:
+      return "270";
+    default:
+      return "?";
+  }
+}
+
+lv_display_rotation_t NextClockwiseRotation(lv_display_rotation_t rotation) {
+  switch (rotation) {
+    case LV_DISPLAY_ROTATION_0:
+      return LV_DISPLAY_ROTATION_90;
+    case LV_DISPLAY_ROTATION_90:
+      return LV_DISPLAY_ROTATION_180;
+    case LV_DISPLAY_ROTATION_180:
+      return LV_DISPLAY_ROTATION_270;
+    case LV_DISPLAY_ROTATION_270:
+    default:
+      return LV_DISPLAY_ROTATION_0;
+  }
+}
+
+void ApplyDisplayRotation(lv_display_rotation_t rotation) {
+  g_display_rotation = rotation;
+  _lock_acquire(&g_lvgl_api_lock);
+  if (g_display != nullptr) {
+    lv_display_set_rotation(g_display, rotation);
+    lv_obj_invalidate(lv_display_get_screen_active(g_display));
+  }
+  _lock_release(&g_lvgl_api_lock);
+  printf("LVGL display rotation set to %s degrees\n", RotationName(rotation));
+}
+
+bool InitRotationButton() {
+  gpio_config_t io_config = {};
+  io_config.pin_bit_mask = 1ULL << t_panel::gpio::esp32s3::kBoot;
+  io_config.mode = GPIO_MODE_INPUT;
+  io_config.pull_up_en = GPIO_PULLUP_ENABLE;
+  io_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+  io_config.intr_type = GPIO_INTR_DISABLE;
+
+  const esp_err_t err = gpio_config(&io_config);
+  if (err != ESP_OK) {
+    printf("Init ESP32-S3 BOOT button failed: %s\n", esp_err_to_name(err));
+    return false;
+  }
+  return true;
+}
+
+void RotationButtonTask(void* arg) {
+  bool last_pressed =
+      gpio_get_level(static_cast<gpio_num_t>(t_panel::gpio::esp32s3::kBoot)) ==
+      0;
+  TickType_t last_trigger_tick = 0;
+
+  while (true) {
+    const bool pressed =
+        gpio_get_level(static_cast<gpio_num_t>(t_panel::gpio::esp32s3::kBoot)) ==
+        0;
+    const TickType_t now = xTaskGetTickCount();
+
+    if (pressed && !last_pressed &&
+        now - last_trigger_tick >= pdMS_TO_TICKS(kRotationButtonDebounceMs)) {
+      last_trigger_tick = now;
+      ApplyDisplayRotation(NextClockwiseRotation(g_display_rotation));
+    }
+
+    last_pressed = pressed;
+    vTaskDelay(pdMS_TO_TICKS(kRotationButtonPollMs));
+  }
+}
 
 void UpdateTouchStatusUnlocked(
     const TP_Point& point, uint8_t point_count, bool pressed) {
@@ -1501,7 +1629,8 @@ void BuildDisplayPage(lv_obj_t* parent) {
   lv_obj_t* card = CreatePageCard(parent);
   CreateCardTitle(card, "Display test");
   g_display_label = CreateStatusPanel(card,
-      "Open full-screen color and wallpaper checks. Tap the screen to advance.",
+      "Open full-screen color and wallpaper checks. Tap the screen to advance.\n"
+      "Press ESP32-S3 BOOT to rotate the UI clockwise.",
       kPrimaryStatusPanelHeight);
   lv_obj_t* button =
       CreateButton(card, "Start LCD picture test", StartDisplayTestEvent,
@@ -1795,6 +1924,9 @@ bool InitLvgl(esp_lcd_panel_handle_t panel_handle) {
   }
   lv_display_set_user_data(g_display, panel_handle);
   lv_display_set_color_format(g_display, LV_COLOR_FORMAT_RGB565);
+  lv_display_set_rotation(g_display, g_display_rotation);
+  printf("LVGL display default rotation set to %s degrees\n",
+      RotationName(g_display_rotation));
   lv_timer_t* refresh_timer = lv_display_get_refr_timer(g_display);
   if (refresh_timer != nullptr) {
     lv_timer_set_period(refresh_timer, kLvglRefreshPeriodMs);
@@ -1835,6 +1967,7 @@ bool InitLvgl(esp_lcd_panel_handle_t panel_handle) {
     return false;
   }
   lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+  lv_indev_set_display(indev, g_display);
   lv_indev_set_read_cb(indev, TouchpadRead);
 
   const esp_timer_create_args_t tick_timer_args = {
@@ -1856,6 +1989,17 @@ bool InitLvgl(esp_lcd_panel_handle_t panel_handle) {
   }
 
   CreateUi();
+
+  if (!InitRotationButton()) {
+    return false;
+  }
+
+  if (xTaskCreate(RotationButtonTask, "RotationButton",
+          kRotationButtonTaskStackSize, nullptr, kRotationButtonTaskPriority,
+          nullptr) != pdPASS) {
+    printf("Create rotation button task failed\n");
+    return false;
+  }
 
   if (xTaskCreate(LvglTask, "LvglTask", kLvglTaskStackSize, nullptr,
           kLvglTaskPriority, nullptr) != pdPASS) {
