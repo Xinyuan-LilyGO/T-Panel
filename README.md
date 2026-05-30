@@ -136,13 +136,14 @@ To flash prebuilt firmware, refer to Espressif's official [ESP firmware online f
 
 ### 6. RS485 / CAN
 
-- T-Panel V1.0-V1.1: RS485
-- T-Panel V1.2/V1.3: replaceable RS485/CAN module
 - RS485 bus: UART
 - CAN bus: TWAI
 - Related documents:
   - [EBYTE-RSM485MT5V](./docs/EBYTE-RSM485MT5V.pdf)
   - [TD501MCANFD_MORNSUN](./docs/TD501MCANFD_MORNSUN.pdf)
+
+> [!IMPORTANT]
+> T-Panel V1.0-V1.1 ships with RS485 by default; T-Panel V1.2-V1.3 uses a replaceable RS485/CAN module.
 
 ## Pin Overview
 

@@ -136,13 +136,14 @@ Example Configuration
 
 ### 6. RS485 / CAN
 
-- T-Panel V1.0-V1.1：RS485
-- T-Panel V1.2/V1.3：可替换 RS485/CAN 模块
 - RS485 总线：UART
 - CAN 总线：TWAI
 - 相关资料：
   - [EBYTE-RSM485MT5V](./docs/EBYTE-RSM485MT5V.pdf)
   - [TD501MCANFD_MORNSUN](./docs/TD501MCANFD_MORNSUN.pdf)
+
+> [!IMPORTANT]
+> T-Panel V1.0-V1.1 默认搭载 RS485；T-Panel V1.2-V1.3 使用可替换 RS485/CAN 模块。
 
 ## 引脚总览
 
