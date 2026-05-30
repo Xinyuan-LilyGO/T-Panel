@@ -14,11 +14,13 @@ dependencies:
       - if: "$CONFIG{EXAMPLE_BUILD_SCREEN_LVGL} == True"
       - if: "$CONFIG{EXAMPLE_BUILD_SCREEN_LVGL_TOUCH_DRAW} == True"
       - if: "$CONFIG{EXAMPLE_BUILD_SD} == True"
+      - if: "$CONFIG{EXAMPLE_BUILD_GENERAL_TEST} == True"
 
   TouchLib:
     override_path: "../libraries/TouchLib"
     matches:
       - if: "$CONFIG{EXAMPLE_BUILD_SCREEN_LVGL_TOUCH_DRAW} == True"
+      - if: "$CONFIG{EXAMPLE_BUILD_GENERAL_TEST} == True"
 
   lvgl/lvgl:
     version: "9.5.0"
@@ -26,3 +28,4 @@ dependencies:
       - if: "$CONFIG{EXAMPLE_BUILD_SCREEN_LVGL} == True"
       - if: "$CONFIG{EXAMPLE_BUILD_SCREEN_LVGL_TOUCH_DRAW} == True"
       - if: "$CONFIG{EXAMPLE_BUILD_SD} == True"
+      - if: "$CONFIG{EXAMPLE_BUILD_GENERAL_TEST} == True"
