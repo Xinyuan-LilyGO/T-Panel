@@ -34,7 +34,7 @@ constexpr int kRs485TxBufferSize = 4096;
 constexpr int kRs485MaxTransmitSize = 1024;
 constexpr int kRs485DirectionSettleMs = 2;
 constexpr int kRs485TxDoneWaitMs = 20;
-constexpr char kRs485TestChar = 'D';
+constexpr char kRs485TestChar = 'R';
 
 constexpr int kCanDataLength = 8;
 constexpr int kCanTxWaitMs = 0;
