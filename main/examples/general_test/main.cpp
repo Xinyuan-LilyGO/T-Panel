@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdarg>
 #include <cstddef>
 #include <cstdint>
@@ -18,6 +19,7 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <vector>
 #include <dirent.h>
 
 #define TOUCH_MODULES_CST_MUTUAL
@@ -72,7 +74,16 @@ constexpr int kBytesPerPixel = 2;
 constexpr uart_port_t kRs485UartPort = UART_NUM_2;
 constexpr int kRs485BaudRate = 115200;
 constexpr int kRs485BufferSize = 4096;
-constexpr int kRs485PayloadSize = 1024;
+constexpr int kRs485PayloadSize = 240;
+constexpr uint8_t kRs485Header0 = 0xAA;
+constexpr uint8_t kRs485Header1 = 0x55;
+constexpr size_t kRs485HeaderSize = 2;
+constexpr size_t kRs485SequenceSize = 4;
+constexpr size_t kRs485LengthSize = 2;
+constexpr size_t kRs485CrcSize = 2;
+constexpr size_t kRs485PacketOverhead = kRs485HeaderSize + kRs485SequenceSize +
+                                        kRs485LengthSize + kRs485CrcSize;
+constexpr size_t kRs485PacketSize = kRs485PacketOverhead + kRs485PayloadSize;
 constexpr int kRs485TxDoneTimeoutMs = 200;
 constexpr char kRs485TestChar = 'R';
 
@@ -186,6 +197,10 @@ volatile bool g_touch_int_flag = false;
 lv_display_rotation_t g_display_rotation = LV_DISPLAY_ROTATION_180;
 void* g_rotated_flush_buffer = nullptr;
 size_t g_rotated_flush_buffer_size = 0;
+std::vector<uint8_t> g_rs485_rx_stream;
+uint32_t g_rs485_tx_sequence = 0;
+uint32_t g_rs485_expected_sequence = 0;
+bool g_rs485_has_expected_sequence = false;
 
 const lv_image_dsc_t* const kWallpaperTable[] = {
     &kLvglStartupImage1,
@@ -1018,13 +1033,126 @@ void DeinitRs485() {
   uart_driver_delete(kRs485UartPort);
 }
 
-bool ValidateData(const uint8_t* data, size_t len, uint8_t expected) {
+uint16_t Crc16Modbus(const uint8_t* data, size_t len) {
+  uint16_t crc = 0xFFFF;
   for (size_t i = 0; i < len; ++i) {
-    if (data[i] != expected) {
-      return false;
+    crc ^= data[i];
+    for (int bit = 0; bit < 8; ++bit) {
+      if ((crc & 0x0001) != 0) {
+        crc = static_cast<uint16_t>((crc >> 1) ^ 0xA001);
+      } else {
+        crc = static_cast<uint16_t>(crc >> 1);
+      }
     }
   }
-  return true;
+  return crc;
+}
+
+void WriteLe16(uint8_t* data, uint16_t value) {
+  data[0] = static_cast<uint8_t>(value & 0xFF);
+  data[1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+}
+
+void WriteLe32(uint8_t* data, uint32_t value) {
+  data[0] = static_cast<uint8_t>(value & 0xFF);
+  data[1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+  data[2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+  data[3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+}
+
+uint16_t ReadLe16(const uint8_t* data) {
+  return static_cast<uint16_t>(data[0]) |
+         (static_cast<uint16_t>(data[1]) << 8);
+}
+
+uint32_t ReadLe32(const uint8_t* data) {
+  return static_cast<uint32_t>(data[0]) |
+         (static_cast<uint32_t>(data[1]) << 8) |
+         (static_cast<uint32_t>(data[2]) << 16) |
+         (static_cast<uint32_t>(data[3]) << 24);
+}
+
+std::array<uint8_t, kRs485PacketSize> BuildRs485Packet(uint32_t sequence) {
+  std::array<uint8_t, kRs485PacketSize> packet = {};
+  packet[0] = kRs485Header0;
+  packet[1] = kRs485Header1;
+  WriteLe32(&packet[2], sequence);
+  WriteLe16(&packet[6], kRs485PayloadSize);
+  for (size_t i = 0; i < kRs485PayloadSize; ++i) {
+    packet[8 + i] = kRs485TestChar;
+  }
+  const uint16_t crc = Crc16Modbus(&packet[2],
+      kRs485SequenceSize + kRs485LengthSize + kRs485PayloadSize);
+  WriteLe16(&packet[8 + kRs485PayloadSize], crc);
+  return packet;
+}
+
+size_t ProcessRs485Stream(const uint8_t* data, size_t len,
+    size_t* crc_error_count, size_t* sequence_error_count) {
+  g_rs485_rx_stream.insert(g_rs485_rx_stream.end(), data, data + len);
+  size_t valid_payload_size = 0;
+
+  while (g_rs485_rx_stream.size() >= kRs485PacketOverhead) {
+    size_t header_pos = 0;
+    while (header_pos + 1 < g_rs485_rx_stream.size() &&
+           (g_rs485_rx_stream[header_pos] != kRs485Header0 ||
+               g_rs485_rx_stream[header_pos + 1] != kRs485Header1)) {
+      ++header_pos;
+    }
+    if (header_pos > 0) {
+      g_rs485_rx_stream.erase(g_rs485_rx_stream.begin(),
+          g_rs485_rx_stream.begin() + header_pos);
+    }
+    if (g_rs485_rx_stream.size() < kRs485PacketOverhead) {
+      break;
+    }
+    if (g_rs485_rx_stream[0] != kRs485Header0 ||
+        g_rs485_rx_stream[1] != kRs485Header1) {
+      break;
+    }
+
+    const uint16_t payload_len = ReadLe16(&g_rs485_rx_stream[6]);
+    if (payload_len == 0 || payload_len > kRs485PayloadSize) {
+      g_rs485_rx_stream.erase(g_rs485_rx_stream.begin());
+      if (crc_error_count != nullptr) {
+        ++(*crc_error_count);
+      }
+      continue;
+    }
+
+    const size_t packet_size = kRs485PacketOverhead + payload_len;
+    if (g_rs485_rx_stream.size() < packet_size) {
+      break;
+    }
+
+    const uint16_t expected_crc =
+        ReadLe16(&g_rs485_rx_stream[8 + payload_len]);
+    const uint16_t actual_crc = Crc16Modbus(&g_rs485_rx_stream[2],
+        kRs485SequenceSize + kRs485LengthSize + payload_len);
+    const uint32_t sequence = ReadLe32(&g_rs485_rx_stream[2]);
+    if (actual_crc != expected_crc) {
+      g_rs485_rx_stream.erase(g_rs485_rx_stream.begin(),
+          g_rs485_rx_stream.begin() + packet_size);
+      if (crc_error_count != nullptr) {
+        ++(*crc_error_count);
+      }
+      continue;
+    }
+
+    if (g_rs485_has_expected_sequence &&
+        sequence != g_rs485_expected_sequence &&
+        sequence_error_count != nullptr) {
+      ++(*sequence_error_count);
+    }
+    g_rs485_expected_sequence = sequence + 1;
+    g_rs485_has_expected_sequence = true;
+
+    valid_payload_size += payload_len;
+    g_rs485_rx_stream.erase(g_rs485_rx_stream.begin(),
+        g_rs485_rx_stream.begin() + packet_size);
+  }
+
+  return valid_payload_size;
 }
 
 bool InitCan(std::string* error) {
@@ -1069,6 +1197,14 @@ bool InitCan(std::string* error) {
   return true;
 }
 
+uint32_t GetCanBusErrorCount() {
+  twai_status_info_t status = {};
+  if (twai_get_status_info(&status) != ESP_OK) {
+    return 0;
+  }
+  return status.bus_error_count;
+}
+
 void DeinitCan() {
   twai_stop();
   twai_driver_uninstall();
@@ -1100,20 +1236,24 @@ void LinkTask(void* arg) {
   }
 
   size_t total_size = 0;
-  size_t bytes_this_time = 0;
+  size_t crc_error_count = 0;
+  size_t sequence_error_count = 0;
+  uint32_t can_bus_error_count = 0;
   int64_t last_print_us = esp_timer_get_time();
-  int64_t start_us = last_print_us;
-  std::string rs485_payload(kRs485PayloadSize, kRs485TestChar);
   std::string runtime_error;
   std::string last_error;
 
   if (mode == LinkMode::kRs485Send) {
+    g_rs485_tx_sequence = 0;
     if (!SetRs485Transmit(true)) {
       runtime_error = "RS485 direction pin TX enable failed";
       g_link_stop = true;
     }
     vTaskDelay(pdMS_TO_TICKS(2));
   } else if (mode == LinkMode::kRs485Receive) {
+    g_rs485_rx_stream.clear();
+    g_rs485_expected_sequence = 0;
+    g_rs485_has_expected_sequence = false;
     if (!SetRs485Transmit(false)) {
       runtime_error = "RS485 direction pin RX enable failed";
       g_link_stop = true;
@@ -1122,14 +1262,13 @@ void LinkTask(void* arg) {
 
   while (!g_link_stop) {
     if (mode == LinkMode::kRs485Send) {
-      int len = uart_write_bytes(kRs485UartPort, rs485_payload.data(),
-          rs485_payload.size());
+      const auto packet = BuildRs485Packet(g_rs485_tx_sequence++);
+      int len = uart_write_bytes(kRs485UartPort, packet.data(), packet.size());
       if (len > 0) {
-        bytes_this_time += len;
         total_size += len;
         esp_err_t err = uart_wait_tx_done(
             kRs485UartPort, pdMS_TO_TICKS(kRs485TxDoneTimeoutMs));
-        if (static_cast<size_t>(len) != rs485_payload.size()) {
+        if (static_cast<size_t>(len) != packet.size()) {
           last_error = "RS485 partial write";
         }
         if (err == ESP_ERR_TIMEOUT) {
@@ -1157,13 +1296,10 @@ void LinkTask(void* arg) {
         const int read_len = uart_read_bytes(kRs485UartPort, buffer.get(),
             rx_len, pdMS_TO_TICKS(20));
         if (read_len > 0) {
-          if (!ValidateData(
-                  buffer.get(), read_len, static_cast<uint8_t>(kRs485TestChar))) {
-            runtime_error = "RS485 RX data corruption";
-            break;
-          }
-          bytes_this_time += read_len;
-          total_size += read_len;
+          const size_t valid_size =
+              ProcessRs485Stream(buffer.get(), read_len, &crc_error_count,
+                  &sequence_error_count);
+          total_size += valid_size;
         } else if (read_len < 0) {
           runtime_error = "RS485 read failed";
           break;
@@ -1197,7 +1333,6 @@ void LinkTask(void* arg) {
         std::memset(message.data, kCanTestChar, kCanDataLength);
         err = twai_transmit(&message, 0);
         if (err == ESP_OK) {
-          bytes_this_time += kCanDataLength;
           total_size += kCanDataLength;
         } else {
           runtime_error =
@@ -1251,13 +1386,10 @@ void LinkTask(void* arg) {
             rx_message.identifier != kCanTestId) {
           continue;
         }
-        if (rx_message.data_length_code == kCanDataLength &&
-            ValidateData(rx_message.data, rx_message.data_length_code,
-                static_cast<uint8_t>(kCanTestChar))) {
-          bytes_this_time += rx_message.data_length_code;
+        if (rx_message.data_length_code == kCanDataLength) {
           total_size += rx_message.data_length_code;
         } else {
-          runtime_error = "CAN RX data corruption";
+          runtime_error = "CAN RX DLC mismatch";
           break;
         }
       }
@@ -1268,25 +1400,40 @@ void LinkTask(void* arg) {
 
     const int64_t now_us = esp_timer_get_time();
     if (now_us - last_print_us >= kTestPrintIntervalMs * 1000) {
-      const float elapsed_s =
-          static_cast<float>(now_us - last_print_us) / 1000000.0f;
-      const float total_s =
-          static_cast<float>(now_us - start_us) / 1000000.0f;
-      const float speed =
-          elapsed_s > 0.0f ? bytes_this_time / 1024.0f / elapsed_s : 0.0f;
       if (last_error.empty()) {
-        SetLabelFmt(g_link_status,
-            "%s %s running\nLast speed: %.2f KB/s\nTotal: %.2f KB\nTime: %.1f s",
-            bus_name, dir_name, speed, total_size / 1024.0f, total_s);
+        if (is_rs485) {
+          SetLabelFmt(g_link_status,
+              "%s %s running\ntotal %zu B | crc error %zu | seq error %zu",
+              bus_name, dir_name, total_size, crc_error_count,
+              sequence_error_count);
+        } else {
+          can_bus_error_count = GetCanBusErrorCount();
+          SetLabelFmt(g_link_status,
+              "%s %s running\ntotal %zu B | bus error %lu", bus_name,
+              dir_name, total_size,
+              static_cast<unsigned long>(can_bus_error_count));
+        }
       } else {
-        SetLabelFmt(g_link_status,
-            "%s %s running\nLast speed: %.2f KB/s\nTotal: %.2f KB\n%s",
-            bus_name, dir_name, speed, total_size / 1024.0f,
-            last_error.c_str());
+        if (is_rs485) {
+          SetLabelFmt(g_link_status,
+              "%s %s running\ntotal %zu B | crc error %zu | seq error %zu\n%s",
+              bus_name, dir_name, total_size, crc_error_count,
+              sequence_error_count, last_error.c_str());
+        } else {
+          can_bus_error_count = GetCanBusErrorCount();
+          SetLabelFmt(g_link_status,
+              "%s %s running\ntotal %zu B | bus error %lu\n%s", bus_name,
+              dir_name, total_size,
+              static_cast<unsigned long>(can_bus_error_count),
+              last_error.c_str());
+        }
       }
-      bytes_this_time = 0;
       last_print_us = now_us;
     }
+  }
+
+  if (!is_rs485) {
+    can_bus_error_count = GetCanBusErrorCount();
   }
 
   if (is_rs485) {
@@ -1298,14 +1445,42 @@ void LinkTask(void* arg) {
   g_link_stop = false;
   g_link_mode = LinkMode::kIdle;
   if (!runtime_error.empty()) {
-    SetLabelFmt(g_link_status, "%s %s error\n%s\nTotal: %.2f KB", bus_name,
-        dir_name, runtime_error.c_str(), total_size / 1024.0f);
+    if (is_rs485) {
+      SetLabelFmt(g_link_status,
+          "%s %s error\n%s\ntotal %zu B | crc error %zu | seq error %zu",
+          bus_name, dir_name, runtime_error.c_str(), total_size,
+          crc_error_count, sequence_error_count);
+    } else {
+      SetLabelFmt(g_link_status,
+          "%s %s error\n%s\ntotal %zu B | bus error %lu", bus_name,
+          dir_name, runtime_error.c_str(), total_size,
+          static_cast<unsigned long>(can_bus_error_count));
+    }
   } else if (!last_error.empty()) {
-    SetLabelFmt(g_link_status, "%s %s stopped\nTotal: %.2f KB\nLast: %s",
-        bus_name, dir_name, total_size / 1024.0f, last_error.c_str());
+    if (is_rs485) {
+      SetLabelFmt(g_link_status,
+          "%s %s stopped\ntotal %zu B | crc error %zu | seq error %zu\nLast: %s",
+          bus_name, dir_name, total_size, crc_error_count,
+          sequence_error_count, last_error.c_str());
+    } else {
+      SetLabelFmt(g_link_status,
+          "%s %s stopped\ntotal %zu B | bus error %lu\nLast: %s",
+          bus_name, dir_name, total_size,
+          static_cast<unsigned long>(can_bus_error_count),
+          last_error.c_str());
+    }
   } else {
-    SetLabelFmt(g_link_status, "%s %s stopped\nTotal: %.2f KB", bus_name,
-        dir_name, total_size / 1024.0f);
+    if (is_rs485) {
+      SetLabelFmt(g_link_status,
+          "%s %s stopped\ntotal %zu B | crc error %zu | seq error %zu",
+          bus_name, dir_name, total_size, crc_error_count,
+          sequence_error_count);
+    } else {
+      SetLabelFmt(g_link_status,
+          "%s %s stopped\ntotal %zu B | bus error %lu", bus_name,
+          dir_name, total_size,
+          static_cast<unsigned long>(can_bus_error_count));
+    }
   }
   g_link_task_handle = nullptr;
   vTaskDelete(nullptr);
