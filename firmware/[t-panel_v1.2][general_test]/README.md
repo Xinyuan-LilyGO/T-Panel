@@ -1,5 +1,11 @@
 # Firmware Modification Log
 
+## 202606131107
+### Changed firmware
+- `[t-panel_v1.2][general_test]_firmware_202606131107`
+### Change content
+- 删除rs485发送界面显示的无用crc error和seq error信息
+
 ## 202606131047
 ### Changed firmware
 - `[t-panel_v1.2][general_test]_firmware_202606131047`

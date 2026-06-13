@@ -1402,10 +1402,15 @@ void LinkTask(void* arg) {
     if (now_us - last_print_us >= kTestPrintIntervalMs * 1000) {
       if (last_error.empty()) {
         if (is_rs485) {
-          SetLabelFmt(g_link_status,
-              "%s %s running\ntotal %zu B | crc error %zu | seq error %zu",
-              bus_name, dir_name, total_size, crc_error_count,
-              sequence_error_count);
+          if (is_send) {
+            SetLabelFmt(g_link_status, "%s %s running\ntotal %zu B",
+                bus_name, dir_name, total_size);
+          } else {
+            SetLabelFmt(g_link_status,
+                "%s %s running\ntotal %zu B | crc error %zu | seq error %zu",
+                bus_name, dir_name, total_size, crc_error_count,
+                sequence_error_count);
+          }
         } else {
           can_bus_error_count = GetCanBusErrorCount();
           SetLabelFmt(g_link_status,
@@ -1415,10 +1420,15 @@ void LinkTask(void* arg) {
         }
       } else {
         if (is_rs485) {
-          SetLabelFmt(g_link_status,
-              "%s %s running\ntotal %zu B | crc error %zu | seq error %zu\n%s",
-              bus_name, dir_name, total_size, crc_error_count,
-              sequence_error_count, last_error.c_str());
+          if (is_send) {
+            SetLabelFmt(g_link_status, "%s %s running\ntotal %zu B\n%s",
+                bus_name, dir_name, total_size, last_error.c_str());
+          } else {
+            SetLabelFmt(g_link_status,
+                "%s %s running\ntotal %zu B | crc error %zu | seq error %zu\n%s",
+                bus_name, dir_name, total_size, crc_error_count,
+                sequence_error_count, last_error.c_str());
+          }
         } else {
           can_bus_error_count = GetCanBusErrorCount();
           SetLabelFmt(g_link_status,
@@ -1446,10 +1456,15 @@ void LinkTask(void* arg) {
   g_link_mode = LinkMode::kIdle;
   if (!runtime_error.empty()) {
     if (is_rs485) {
-      SetLabelFmt(g_link_status,
-          "%s %s error\n%s\ntotal %zu B | crc error %zu | seq error %zu",
-          bus_name, dir_name, runtime_error.c_str(), total_size,
-          crc_error_count, sequence_error_count);
+      if (is_send) {
+        SetLabelFmt(g_link_status, "%s %s error\n%s\ntotal %zu B", bus_name,
+            dir_name, runtime_error.c_str(), total_size);
+      } else {
+        SetLabelFmt(g_link_status,
+            "%s %s error\n%s\ntotal %zu B | crc error %zu | seq error %zu",
+            bus_name, dir_name, runtime_error.c_str(), total_size,
+            crc_error_count, sequence_error_count);
+      }
     } else {
       SetLabelFmt(g_link_status,
           "%s %s error\n%s\ntotal %zu B | bus error %lu", bus_name,
@@ -1458,10 +1473,16 @@ void LinkTask(void* arg) {
     }
   } else if (!last_error.empty()) {
     if (is_rs485) {
-      SetLabelFmt(g_link_status,
-          "%s %s stopped\ntotal %zu B | crc error %zu | seq error %zu\nLast: %s",
-          bus_name, dir_name, total_size, crc_error_count,
-          sequence_error_count, last_error.c_str());
+      if (is_send) {
+        SetLabelFmt(g_link_status,
+            "%s %s stopped\ntotal %zu B\nLast: %s", bus_name, dir_name,
+            total_size, last_error.c_str());
+      } else {
+        SetLabelFmt(g_link_status,
+            "%s %s stopped\ntotal %zu B | crc error %zu | seq error %zu\nLast: %s",
+            bus_name, dir_name, total_size, crc_error_count,
+            sequence_error_count, last_error.c_str());
+      }
     } else {
       SetLabelFmt(g_link_status,
           "%s %s stopped\ntotal %zu B | bus error %lu\nLast: %s",
@@ -1471,10 +1492,15 @@ void LinkTask(void* arg) {
     }
   } else {
     if (is_rs485) {
-      SetLabelFmt(g_link_status,
-          "%s %s stopped\ntotal %zu B | crc error %zu | seq error %zu",
-          bus_name, dir_name, total_size, crc_error_count,
-          sequence_error_count);
+      if (is_send) {
+        SetLabelFmt(g_link_status, "%s %s stopped\ntotal %zu B", bus_name,
+            dir_name, total_size);
+      } else {
+        SetLabelFmt(g_link_status,
+            "%s %s stopped\ntotal %zu B | crc error %zu | seq error %zu",
+            bus_name, dir_name, total_size, crc_error_count,
+            sequence_error_count);
+      }
     } else {
       SetLabelFmt(g_link_status,
           "%s %s stopped\ntotal %zu B | bus error %lu", bus_name,

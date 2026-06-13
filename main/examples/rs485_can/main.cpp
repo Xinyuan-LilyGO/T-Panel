@@ -202,10 +202,14 @@ size_t ProcessRs485Stream(const uint8_t* data, size_t len) {
   return valid_payload_size;
 }
 
-void PrintRs485Status(const char* tag, size_t total_size) {
-  printf("[%s] total %zu B | crc error %lu | seq error %lu\n", tag,
-      total_size, static_cast<unsigned long>(g_rs485_crc_error_count),
-      static_cast<unsigned long>(g_rs485_sequence_error_count));
+void PrintRs485Status(const char* tag, size_t total_size, bool is_send) {
+  if (is_send) {
+    printf("[%s] total %zu B\n", tag, total_size);
+  } else {
+    printf("[%s] total %zu B | crc error %lu | seq error %lu\n", tag,
+        total_size, static_cast<unsigned long>(g_rs485_crc_error_count),
+        static_cast<unsigned long>(g_rs485_sequence_error_count));
+  }
 }
 
 uint32_t GetCanBusErrorCount() {
@@ -335,14 +339,14 @@ void Rs485Task(void* param) {
 
       const int64_t now = esp_timer_get_time();
       if (now - last_print_time >= kPrintIntervalUs) {
-        PrintRs485Status("rs485 send", total_size);
+        PrintRs485Status("rs485 send", total_size, true);
         last_print_time = now;
       }
 
       vTaskDelay(pdMS_TO_TICKS(10));
     }
 
-    PrintRs485Status("rs485 send", total_size);
+    PrintRs485Status("rs485 send", total_size, true);
   } else {
     g_rs485_crc_error_count = 0;
     g_rs485_sequence_error_count = 0;
@@ -367,14 +371,14 @@ void Rs485Task(void* param) {
 
       const int64_t now = esp_timer_get_time();
       if (now - last_print_time >= kPrintIntervalUs) {
-        PrintRs485Status("rs485 receive", total_size);
+        PrintRs485Status("rs485 receive", total_size, false);
         last_print_time = now;
       }
 
       vTaskDelay(pdMS_TO_TICKS(10));
     }
 
-    PrintRs485Status("rs485 receive", total_size);
+    PrintRs485Status("rs485 receive", total_size, false);
   }
 
   DeinitRs485();
