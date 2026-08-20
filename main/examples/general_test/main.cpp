@@ -30,7 +30,6 @@
 #include "driver/i2c_master.h"
 #include "driver/sdspi_host.h"
 #include "driver/spi_common.h"
-#include "driver/twai.h"
 #include "driver/uart.h"
 #include "esp_attr.h"
 #include "esp_err.h"
@@ -41,9 +40,12 @@
 #include "esp_netif.h"
 #include "esp_sntp.h"
 #include "esp_timer.h"
+#include "esp_twai.h"
+#include "esp_twai_onchip.h"
 #include "esp_vfs_fat.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "freertos/task.h"
 #include "draw/sw/lv_draw_sw.h"
 #include "lvgl.h"
@@ -88,12 +90,16 @@ constexpr int kRs485TxDoneTimeoutMs = 200;
 constexpr char kRs485TestChar = 'R';
 
 constexpr int kCanDataLength = 8;
+constexpr int kCanTxWaitMs = 0;
+constexpr int kCanTxIntervalMs = 20;
+constexpr int kCanRecoverRetryIntervalMs = 1000;
+constexpr int kCanPollMs = 100;
+constexpr int kCanMaxReceiveFramesPerLoop = 32;
 constexpr uint32_t kCanTestId = 0x0F1;
 constexpr char kCanTestChar = 'C';
-constexpr uint32_t kCanAlertFlags =
-    TWAI_ALERT_TX_FAILED | TWAI_ALERT_ERR_PASS | TWAI_ALERT_BUS_ERROR |
-    TWAI_ALERT_RX_DATA | TWAI_ALERT_RX_QUEUE_FULL | TWAI_ALERT_BUS_OFF |
-    TWAI_ALERT_BUS_RECOVERED;
+constexpr int kCanBitrate = 1000000;
+constexpr int kCanTxQueueDepth = 16;
+constexpr int kCanRxQueueDepth = 32;
 
 constexpr int kTestPrintIntervalMs = 1000;
 constexpr int kWifiConnectTimeoutMs = 10000;
@@ -149,6 +155,14 @@ enum class LinkMode {
   kCanReceive,
 };
 
+struct CanRxFrame {
+  uint32_t id;
+  uint8_t data[kCanDataLength];
+  uint8_t data_length;
+  bool is_remote;
+  bool is_extended;
+};
+
 enum class BleState {
   kIdle,
   kWaiting,
@@ -201,6 +215,12 @@ std::vector<uint8_t> g_rs485_rx_stream;
 uint32_t g_rs485_tx_sequence = 0;
 uint32_t g_rs485_expected_sequence = 0;
 bool g_rs485_has_expected_sequence = false;
+twai_node_handle_t g_can_node = nullptr;
+QueueHandle_t g_can_rx_queue = nullptr;
+volatile uint32_t g_can_error_flags = 0;
+volatile twai_error_state_t g_can_state = TWAI_ERROR_ACTIVE;
+volatile bool g_can_recovering = false;
+int64_t g_can_last_recover_us = 0;
 
 const lv_image_dsc_t* const kWallpaperTable[] = {
     &kLvglStartupImage1,
@@ -940,49 +960,19 @@ bool SetRs485Transmit(bool enable) {
       t_panel::gpio::xl95x5::kRs485Con, enable ? 1 : 0);
 }
 
-const char* CanStateName(int state) {
+const char* CanStateName(twai_error_state_t state) {
   switch (state) {
-    case TWAI_STATE_STOPPED:
-      return "stopped";
-    case TWAI_STATE_RUNNING:
-      return "running";
-    case TWAI_STATE_BUS_OFF:
+    case TWAI_ERROR_ACTIVE:
+      return "active";
+    case TWAI_ERROR_WARNING:
+      return "warning";
+    case TWAI_ERROR_PASSIVE:
+      return "passive";
+    case TWAI_ERROR_BUS_OFF:
       return "bus off";
-    case TWAI_STATE_RECOVERING:
-      return "recovering";
     default:
       return "unknown";
   }
-}
-
-std::string DescribeCanAlerts(uint32_t alerts) {
-  std::string text;
-  auto append = [&text](const char* name) {
-    if (!text.empty()) {
-      text += ",";
-    }
-    text += name;
-  };
-
-  if (alerts & TWAI_ALERT_TX_FAILED) {
-    append("TX_FAILED");
-  }
-  if (alerts & TWAI_ALERT_ERR_PASS) {
-    append("ERR_PASS");
-  }
-  if (alerts & TWAI_ALERT_BUS_ERROR) {
-    append("BUS_ERROR");
-  }
-  if (alerts & TWAI_ALERT_RX_QUEUE_FULL) {
-    append("RX_FULL");
-  }
-  if (alerts & TWAI_ALERT_BUS_OFF) {
-    append("BUS_OFF");
-  }
-  if (alerts & TWAI_ALERT_BUS_RECOVERED) {
-    append("RECOVERED");
-  }
-  return text.empty() ? "none" : text;
 }
 
 bool InitRs485(std::string* error) {
@@ -1155,42 +1145,110 @@ size_t ProcessRs485Stream(const uint8_t* data, size_t len,
   return valid_payload_size;
 }
 
+bool IRAM_ATTR OnCanRxDone(twai_node_handle_t handle,
+    const twai_rx_done_event_data_t* event, void* user_ctx) {
+  (void)event;
+  (void)user_ctx;
+  if (g_can_rx_queue == nullptr) {
+    return false;
+  }
+
+  uint8_t data[TWAI_FRAME_MAX_LEN] = {};
+  twai_frame_t frame = {};
+  frame.buffer = data;
+  frame.buffer_len = sizeof(data);
+  if (twai_node_receive_from_isr(handle, &frame) != ESP_OK) {
+    return false;
+  }
+
+  CanRxFrame rx_frame = {};
+  rx_frame.id = frame.header.id;
+  rx_frame.is_remote = frame.header.rtr;
+  rx_frame.is_extended = frame.header.ide;
+  uint16_t data_length = twaifd_dlc2len(frame.header.dlc);
+  if (data_length > kCanDataLength) {
+    data_length = kCanDataLength;
+  }
+  rx_frame.data_length = static_cast<uint8_t>(data_length);
+  std::memcpy(rx_frame.data, data, data_length);
+
+  BaseType_t high_task_wakeup = pdFALSE;
+  xQueueSendFromISR(g_can_rx_queue, &rx_frame, &high_task_wakeup);
+  return high_task_wakeup == pdTRUE;
+}
+
+bool IRAM_ATTR OnCanError(twai_node_handle_t handle,
+    const twai_error_event_data_t* event, void* user_ctx) {
+  (void)handle;
+  (void)user_ctx;
+  g_can_error_flags |= event->err_flags.val;
+  return false;
+}
+
+bool IRAM_ATTR OnCanStateChange(twai_node_handle_t handle,
+    const twai_state_change_event_data_t* event, void* user_ctx) {
+  (void)handle;
+  (void)user_ctx;
+  g_can_state = event->new_sta;
+  if (event->new_sta == TWAI_ERROR_ACTIVE) {
+    g_can_recovering = false;
+  }
+  return false;
+}
+
 bool InitCan(std::string* error) {
-  if (g_wifi_started) {
-    esp_wifi_disconnect();
-    esp_wifi_stop();
-    g_wifi_started = false;
-    printf("WiFi stopped before CAN test to free interrupt resources\n");
+  g_can_error_flags = 0;
+  g_can_state = TWAI_ERROR_ACTIVE;
+  g_can_recovering = false;
+  g_can_last_recover_us = 0;
+
+  g_can_rx_queue = xQueueCreate(kCanRxQueueDepth, sizeof(CanRxFrame));
+  if (g_can_rx_queue == nullptr) {
+    *error = "CAN RX queue create failed";
+    return false;
   }
 
-  twai_general_config_t general_config = TWAI_GENERAL_CONFIG_DEFAULT(
-      static_cast<gpio_num_t>(t_panel::gpio::can::kTx),
-      static_cast<gpio_num_t>(t_panel::gpio::can::kRx), TWAI_MODE_NORMAL);
-  twai_timing_config_t timing_config = TWAI_TIMING_CONFIG_500KBITS();
-  twai_filter_config_t filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+  twai_onchip_node_config_t node_config = {};
+  node_config.io_cfg.tx =
+      static_cast<gpio_num_t>(t_panel::gpio::can::kTx);
+  node_config.io_cfg.rx =
+      static_cast<gpio_num_t>(t_panel::gpio::can::kRx);
+  node_config.io_cfg.quanta_clk_out = GPIO_NUM_NC;
+  node_config.io_cfg.bus_off_indicator = GPIO_NUM_NC;
+  node_config.bit_timing.bitrate = kCanBitrate;
+  node_config.fail_retry_cnt = 0;
+  node_config.tx_queue_depth = kCanTxQueueDepth;
 
-  esp_err_t err =
-      twai_driver_install(&general_config, &timing_config, &filter_config);
+  esp_err_t err = twai_new_node_onchip(&node_config, &g_can_node);
   if (err != ESP_OK) {
-    if (err == ESP_ERR_INVALID_STATE) {
-      twai_driver_uninstall();
-    }
-    *error = std::string("TWAI driver install failed: ") + esp_err_to_name(err);
+    vQueueDelete(g_can_rx_queue);
+    g_can_rx_queue = nullptr;
+    *error = std::string("TWAI node create failed: ") + esp_err_to_name(err);
     printf("%s\n", error->c_str());
     return false;
   }
-  err = twai_start();
-  if (err != ESP_OK) {
-    twai_driver_uninstall();
-    *error = std::string("TWAI start failed: ") + esp_err_to_name(err);
-    printf("%s\n", error->c_str());
-    return false;
+
+  twai_mask_filter_config_t filter_config = {};
+  filter_config.id = 0;
+  filter_config.mask = 0;
+  err = twai_node_config_mask_filter(g_can_node, 0, &filter_config);
+  if (err == ESP_OK) {
+    twai_event_callbacks_t callbacks = {};
+    callbacks.on_rx_done = OnCanRxDone;
+    callbacks.on_error = OnCanError;
+    callbacks.on_state_change = OnCanStateChange;
+    err = twai_node_register_event_callbacks(
+        g_can_node, &callbacks, nullptr);
   }
-  err = twai_reconfigure_alerts(kCanAlertFlags, nullptr);
+  if (err == ESP_OK) {
+    err = twai_node_enable(g_can_node);
+  }
   if (err != ESP_OK) {
-    twai_stop();
-    twai_driver_uninstall();
-    *error = std::string("TWAI alerts config failed: ") + esp_err_to_name(err);
+    twai_node_delete(g_can_node);
+    g_can_node = nullptr;
+    vQueueDelete(g_can_rx_queue);
+    g_can_rx_queue = nullptr;
+    *error = std::string("TWAI node setup failed: ") + esp_err_to_name(err);
     printf("%s\n", error->c_str());
     return false;
   }
@@ -1198,16 +1256,65 @@ bool InitCan(std::string* error) {
 }
 
 uint32_t GetCanBusErrorCount() {
-  twai_status_info_t status = {};
-  if (twai_get_status_info(&status) != ESP_OK) {
+  if (g_can_node == nullptr) {
     return 0;
   }
-  return status.bus_error_count;
+  twai_node_status_t status = {};
+  twai_node_record_t record = {};
+  if (twai_node_get_info(g_can_node, &status, &record) != ESP_OK) {
+    return 0;
+  }
+  return record.bus_err_num;
+}
+
+void ServiceCanState(std::string* last_error) {
+  if (g_can_node == nullptr) {
+    return;
+  }
+
+  twai_node_status_t status = {};
+  twai_node_record_t record = {};
+  if (twai_node_get_info(g_can_node, &status, &record) != ESP_OK) {
+    return;
+  }
+  g_can_state = status.state;
+
+  if (status.state == TWAI_ERROR_ACTIVE) {
+    if (last_error != nullptr) {
+      last_error->clear();
+    }
+    return;
+  }
+
+  if (last_error != nullptr) {
+    *last_error = std::string("CAN state: ") + CanStateName(status.state);
+  }
+  const int64_t now = esp_timer_get_time();
+  const bool can_retry_recover =
+      now - g_can_last_recover_us >= kCanRecoverRetryIntervalMs * 1000;
+  if (status.state == TWAI_ERROR_BUS_OFF && !g_can_recovering &&
+      can_retry_recover) {
+    if (twai_node_recover(g_can_node) == ESP_OK) {
+      g_can_recovering = true;
+      g_can_last_recover_us = now;
+      if (last_error != nullptr) {
+        *last_error = "CAN bus off, recovering";
+      }
+    }
+  }
 }
 
 void DeinitCan() {
-  twai_stop();
-  twai_driver_uninstall();
+  if (g_can_node != nullptr) {
+    twai_node_transmit_wait_all_done(g_can_node, 100);
+    twai_node_disable(g_can_node);
+    twai_node_delete(g_can_node);
+    g_can_node = nullptr;
+  }
+  if (g_can_rx_queue != nullptr) {
+    vQueueDelete(g_can_rx_queue);
+    g_can_rx_queue = nullptr;
+  }
 }
 
 void LinkTask(void* arg) {
@@ -1242,6 +1349,13 @@ void LinkTask(void* arg) {
   int64_t last_print_us = esp_timer_get_time();
   std::string runtime_error;
   std::string last_error;
+  uint8_t can_tx_data[kCanDataLength] = {};
+  std::memset(can_tx_data, kCanTestChar, sizeof(can_tx_data));
+  twai_frame_t can_tx_frame = {};
+  can_tx_frame.header.id = kCanTestId;
+  can_tx_frame.header.dlc = kCanDataLength;
+  can_tx_frame.buffer = can_tx_data;
+  can_tx_frame.buffer_len = sizeof(can_tx_data);
 
   if (mode == LinkMode::kRs485Send) {
     g_rs485_tx_sequence = 0;
@@ -1307,95 +1421,33 @@ void LinkTask(void* arg) {
       }
       vTaskDelay(pdMS_TO_TICKS(10));
     } else if (mode == LinkMode::kCanSend) {
-      uint32_t alerts = 0;
-      esp_err_t err = twai_read_alerts(&alerts, 0);
-      if (err != ESP_OK && err != ESP_ERR_TIMEOUT) {
-        runtime_error =
-            std::string("TWAI alert read failed: ") + esp_err_to_name(err);
-        break;
-      }
-      if (alerts & (TWAI_ALERT_TX_FAILED | TWAI_ALERT_ERR_PASS |
-                       TWAI_ALERT_BUS_ERROR | TWAI_ALERT_RX_QUEUE_FULL |
-                       TWAI_ALERT_BUS_OFF)) {
-        last_error = std::string("CAN alerts: ") + DescribeCanAlerts(alerts);
-      }
-      twai_status_info_t status = {};
-      err = twai_get_status_info(&status);
-      if (err != ESP_OK) {
-        runtime_error =
-            std::string("TWAI status read failed: ") + esp_err_to_name(err);
-        break;
-      }
-      if (status.state == TWAI_STATE_RUNNING) {
-        twai_message_t message = {};
-        message.identifier = kCanTestId;
-        message.data_length_code = kCanDataLength;
-        std::memset(message.data, kCanTestChar, kCanDataLength);
-        err = twai_transmit(&message, 0);
-        if (err == ESP_OK) {
+      ServiceCanState(&last_error);
+      twai_node_status_t status = {};
+      twai_node_record_t record = {};
+      if (twai_node_get_info(g_can_node, &status, &record) == ESP_OK &&
+          status.state != TWAI_ERROR_BUS_OFF &&
+          status.tx_queue_remaining > 0) {
+        if (twai_node_transmit(
+                g_can_node, &can_tx_frame, kCanTxWaitMs) == ESP_OK) {
           total_size += kCanDataLength;
-        } else {
-          runtime_error =
-              std::string("CAN transmit failed: ") + esp_err_to_name(err);
-          break;
         }
-      } else if (status.state == TWAI_STATE_BUS_OFF) {
-        last_error = "CAN bus off, recovering";
-        err = twai_initiate_recovery();
-        if (err != ESP_OK) {
-          runtime_error =
-              std::string("CAN recovery failed: ") + esp_err_to_name(err);
-          break;
+      }
+      vTaskDelay(pdMS_TO_TICKS(kCanTxIntervalMs));
+    } else if (mode == LinkMode::kCanReceive) {
+      ServiceCanState(&last_error);
+      CanRxFrame rx_frame = {};
+      int receive_count = 0;
+      while (receive_count < kCanMaxReceiveFramesPerLoop &&
+          xQueueReceive(g_can_rx_queue, &rx_frame,
+              pdMS_TO_TICKS(kCanPollMs)) == pdTRUE) {
+        ++receive_count;
+        if (!rx_frame.is_remote && !rx_frame.is_extended &&
+            rx_frame.id == kCanTestId &&
+            rx_frame.data_length == kCanDataLength) {
+          total_size += rx_frame.data_length;
         }
-      } else {
-        last_error = std::string("CAN state: ") + CanStateName(status.state);
       }
       vTaskDelay(pdMS_TO_TICKS(1));
-    } else if (mode == LinkMode::kCanReceive) {
-      uint32_t alerts = 0;
-      esp_err_t err = twai_read_alerts(&alerts, pdMS_TO_TICKS(50));
-      if (err != ESP_OK && err != ESP_ERR_TIMEOUT) {
-        runtime_error =
-            std::string("TWAI alert read failed: ") + esp_err_to_name(err);
-        break;
-      }
-      if (alerts & (TWAI_ALERT_TX_FAILED | TWAI_ALERT_ERR_PASS |
-                       TWAI_ALERT_BUS_ERROR | TWAI_ALERT_RX_QUEUE_FULL |
-                       TWAI_ALERT_BUS_OFF)) {
-        last_error = std::string("CAN alerts: ") + DescribeCanAlerts(alerts);
-      }
-      if (alerts & TWAI_ALERT_BUS_OFF) {
-        err = twai_initiate_recovery();
-        if (err != ESP_OK) {
-          runtime_error =
-              std::string("CAN recovery failed: ") + esp_err_to_name(err);
-          break;
-        }
-      }
-      if (alerts & TWAI_ALERT_BUS_RECOVERED) {
-        err = twai_start();
-        if (err != ESP_OK) {
-          runtime_error =
-              std::string("CAN restart failed: ") + esp_err_to_name(err);
-          break;
-        }
-      }
-      twai_message_t rx_message = {};
-      while (twai_receive(&rx_message, 0) == ESP_OK) {
-        if (rx_message.rtr || rx_message.extd ||
-            rx_message.identifier != kCanTestId) {
-          continue;
-        }
-        if (rx_message.data_length_code == kCanDataLength) {
-          total_size += rx_message.data_length_code;
-        } else {
-          runtime_error = "CAN RX DLC mismatch";
-          break;
-        }
-      }
-      if (!runtime_error.empty()) {
-        break;
-      }
     }
 
     const int64_t now_us = esp_timer_get_time();

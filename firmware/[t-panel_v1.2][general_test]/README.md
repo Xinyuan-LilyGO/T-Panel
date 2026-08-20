@@ -1,5 +1,11 @@
 # Firmware Modification Log
 
+## 202608200958
+### Changed firmware
+- `[t-panel_v1.2][general_test]_firmware_202608200958`
+### Change content
+- 修复can总线异常错误停止，防止can总线在正常通信连接的情况错误停止
+
 ## 202606131107
 ### Changed firmware
 - `[t-panel_v1.2][general_test]_firmware_202606131107`
